@@ -39,56 +39,55 @@ class Ics implements Generator
     /** {@inheritDoc} */
     public function generate(Link $link): string
     {
-        $url = [
-            'BEGIN:VCALENDAR',
-            'VERSION:2.0', // @see https://datatracker.ietf.org/doc/html/rfc5545#section-3.7.4
-            'PRODID:Spatie calendar-links', // @see https://datatracker.ietf.org/doc/html/rfc5545#section-3.7.3
-            'BEGIN:VEVENT',
-            'UID:'.($this->options['UID'] ?? $this->generateEventUid($link)),
-            'SUMMARY:'.$this->escapeString($link->title),
-        ];
-
-        $dateTimeFormat = $link->allDay ? $this->dateFormat : $this->dateTimeFormat;
+        $data = [];
+        $data[] = 'BEGIN:VCALENDAR';
+        $data[] = 'VERSION:2.0'; // @see https://datatracker.ietf.org/doc/html/rfc5545#section-3.7.4
+        $data[] = 'PRODID:Spatie calendar-links'; // @see https://datatracker.ietf.org/doc/html/rfc5545#section-3.7.3
+        $data[] = 'BEGIN:VEVENT';
+        $data[] = 'UID:' . ($this->options['UID'] ?? $this->generateEventUid($link));
+        $data[] = 'SUMMARY:' . $this->escapeString($link->title);
 
         if ($link->allDay) {
-            $url[] = 'DTSTAMP:'.$link->from->format($dateTimeFormat);
-            $url[] = 'DTSTART:'.$link->from->format($dateTimeFormat);
-            $url[] = 'DURATION:P'.(max(1, $link->from->diff($link->to)->days)).'D';
+            $data[] = 'DTSTAMP:' . $link->from->format($this->dateFormat);
+            $data[] = 'DTSTART:' . $link->from->format($this->dateFormat);
+            $duration_days = max(1, $link->from->diff($link->to)->days);
+            $data[] = 'DURATION:P' . $duration_days . 'D';
         } else {
-            $url[] = 'DTSTAMP:'.gmdate($dateTimeFormat, $link->from->getTimestamp());
-            $url[] = 'DTSTART:'.gmdate($dateTimeFormat, $link->from->getTimestamp());
-            $url[] = 'DTEND:'.gmdate($dateTimeFormat, $link->to->getTimestamp());
+            $data[] = 'DTSTAMP:' . gmdate($this->dateTimeFormat, $link->from->getTimestamp());
+            $data[] = 'DTSTART:' . gmdate($this->dateTimeFormat, $link->from->getTimestamp());
+            $data[] = 'DTEND:' . gmdate($this->dateTimeFormat, $link->to->getTimestamp());
         }
 
         if ($link->description) {
-            $url[] = 'DESCRIPTION:'.$this->escapeString(strip_tags($link->description));
+            $data[] = 'DESCRIPTION:' . $this->escapeString(strip_tags($link->description));
         }
+
         if ($link->address) {
-            $url[] = 'LOCATION:'.$this->escapeString($link->address);
+            $data[] = 'LOCATION:' . $this->escapeString($link->address);
         }
 
         if (isset($this->options['URL'])) {
-            $url[] = 'URL;VALUE=URI:'.$this->options['URL'];
+            $data[] = 'URL;VALUE=URI:' . $this->options['URL'];
         }
 
         if (is_array($this->options['REMINDER'] ?? null)) {
-            $url = [...$url, ...$this->generateAlertComponent($link)];
+            $data = [...$data, ...$this->generateAlertComponent($link)];
         }
 
-        $url[] = 'END:VEVENT';
-        $url[] = 'END:VCALENDAR';
+        $data[] = 'END:VEVENT';
+        $data[] = 'END:VCALENDAR';
 
         $format = $this->presentationOptions['format'] ?? self::FORMAT_HTML;
 
         return match ($format) {
-            'file' => $this->buildFile($url),
-            default => $this->buildLink($url),
+            'file' => $this->buildFile($data),
+            default => $this->buildLink($data),
         };
     }
 
     protected function buildLink(array $propertiesAndComponents): string
     {
-        return 'data:text/calendar;charset=utf8;base64,'.base64_encode(implode("\r\n", $propertiesAndComponents));
+        return 'data:text/calendar;charset=utf8;base64,' . base64_encode(implode("\r\n", $propertiesAndComponents));
     }
 
     protected function buildFile(array $propertiesAndComponents): string
@@ -121,8 +120,8 @@ class Ics implements Generator
     private function generateAlertComponent(Link $link): array
     {
         $description = $this->options['REMINDER']['DESCRIPTION'] ?? null;
-        if (! is_string($description)) {
-            $description = 'Reminder: '.$this->escapeString($link->title);
+        if (!is_string($description)) {
+            $description = 'Reminder: ' . $this->escapeString($link->title);
         }
 
         $trigger = '-PT15M';
@@ -133,8 +132,8 @@ class Ics implements Generator
         $alarmComponent = [];
         $alarmComponent[] = 'BEGIN:VALARM';
         $alarmComponent[] = 'ACTION:DISPLAY';
-        $alarmComponent[] = 'DESCRIPTION:'.$description;
-        $alarmComponent[] = 'TRIGGER:'.$trigger;
+        $alarmComponent[] = 'DESCRIPTION:' . $description;
+        $alarmComponent[] = 'TRIGGER:' . $trigger;
         $alarmComponent[] = 'END:VALARM';
 
         return $alarmComponent;

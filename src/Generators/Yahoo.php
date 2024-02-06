@@ -2,7 +2,6 @@
 
 namespace Spatie\CalendarLinks\Generators;
 
-use DateTimeZone;
 use Spatie\CalendarLinks\Generator;
 use Spatie\CalendarLinks\Link;
 
@@ -30,45 +29,28 @@ class Yahoo implements Generator
     /** {@inheritDoc} */
     public function generate(Link $link): string
     {
-        $url = 'https://calendar.yahoo.com/?v=60&view=d&type=20';
-
-        $dateTimeFormat = $link->allDay ? $this->dateFormat : $this->dateTimeFormat;
+        $url = 'https://calendar.yahoo.com/';
+        $query = [];
+        $query['v'] = '60';
+        $query['view'] = 'd';
+        $query['type'] = 20;
 
         if ($link->allDay) {
-            $url .= '&ST='.$link->from->format($dateTimeFormat);
-            $url .= '&DUR=allday';
-            $url .= '&ET='.$link->to->format($dateTimeFormat);
+            $query['st'] = $link->from->format($this->dateFormat);
+            $query['et'] = $link->to->format($this->dateFormat);
+            $query['dur'] = 'allday';
         } else {
-            $utcStartDateTime = (clone $link->from)->setTimezone(new DateTimeZone('UTC'));
-            $utcEndDateTime = (clone $link->to)->setTimezone(new DateTimeZone('UTC'));
-            $url .= '&ST='.$utcStartDateTime->format($dateTimeFormat);
-            $url .= '&ET='.$utcEndDateTime->format($dateTimeFormat);
+            $utcStartDateTime = (clone $link->from)->setTimezone(new \DateTimeZone('UTC'));
+            $utcEndDateTime = (clone $link->to)->setTimezone(new \DateTimeZone('UTC'));
+            $query['st'] = $utcStartDateTime->format($this->dateTimeFormat);
+            $query['et'] = $utcEndDateTime->format($this->dateTimeFormat);
         }
 
-        $url .= '&TITLE='.$this->sanitizeText($link->title);
-
-        if ($link->description) {
-            $url .= '&DESC='.$this->sanitizeText($link->description);
-        }
-
-        if ($link->address) {
-            $url .= '&in_loc='.$this->sanitizeText($link->address);
-        }
-
-        foreach ($this->urlParameters as $key => $value) {
-            $url .= '&'.urlencode($key).(in_array($value, [null, ''], true) ? '' : '='.$this->sanitizeText((string) $value));
-        }
-
-        return $url;
+        $query['title'] = $link->title;
+        $query['desc'] = $link->description ?? NULL;
+        $query['in_loc'] = $link->address ?? NULL;
+        $query = [...$query, ...$this->urlParameters];
+        return $url . '?' . http_build_query($query);
     }
 
-    /**
-     * Prepare text to use used in URL and parsed by the service.
-     * @param string $text
-     * @return string
-     */
-    private function sanitizeText(string $text): string
-    {
-        return rawurlencode($text);
-    }
 }

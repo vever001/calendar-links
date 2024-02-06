@@ -2,7 +2,6 @@
 
 namespace Spatie\CalendarLinks\Generators;
 
-use DateTimeZone;
 use Spatie\CalendarLinks\Generator;
 use Spatie\CalendarLinks\Link;
 
@@ -29,25 +28,18 @@ class Google implements Generator
     /** {@inheritDoc} */
     public function generate(Link $link): string
     {
-        $url = 'https://calendar.google.com/calendar/render?action=TEMPLATE';
-
+        $url = 'https://calendar.google.com/calendar/render';
         $dateTimeFormat = $link->allDay ? $this->dateFormat : $this->dateTimeFormat;
-        $url .= '&dates='.$link->from->format($dateTimeFormat).'/'.$link->to->format($dateTimeFormat);
-        $url .= '&ctz=' . $link->from->getTimezone()->getName();
-        $url .= '&text='.urlencode($link->title);
+        $query = [
+            'action' => 'TEMPLATE',
+            'dates' => "{$link->from->format($dateTimeFormat)}/{$link->to->format($dateTimeFormat)}",
+            'ctz' => $link->from->getTimezone()->getName(),
+            'text' => $link->title,
+            'details' => $link->description ?? NULL,
+            'location' => $link->address ?? NULL,
+        ];
 
-        if ($link->description) {
-            $url .= '&details='.urlencode($link->description);
-        }
-
-        if ($link->address) {
-            $url .= '&location='.urlencode($link->address);
-        }
-
-        foreach ($this->urlParameters as $key => $value) {
-            $url .= '&'.urlencode($key).(in_array($value, [null, ''], true) ? '' : '='.urlencode((string) $value));
-        }
-
-        return $url;
+        $query = [...$query, ...$this->urlParameters];
+        return $url . '?' . http_build_query($query);
     }
 }

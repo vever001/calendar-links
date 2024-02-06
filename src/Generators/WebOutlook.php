@@ -2,13 +2,28 @@
 
 namespace Spatie\CalendarLinks\Generators;
 
-class WebOutlook extends BaseOutlook
-{
-    protected const BASE_URL = 'https://outlook.live.com/calendar/action/compose?path=/calendar/action/compose&rru=addevent';
+use Spatie\CalendarLinks\Generator;
+use Spatie\CalendarLinks\Link;
 
-    /** @inheritDoc */
-    public function baseUrl(): string
+class WebOutlook implements Generator
+{
+    use OutlookTrait;
+
+    /** @psalm-var OutlookUrlParameters */
+    protected array $urlParameters = [];
+
+    /** @psalm-param OutlookUrlParameters $urlParameters */
+    public function __construct(array $urlParameters = [])
     {
-        return static::BASE_URL;
+        $this->urlParameters = $urlParameters;
+    }
+
+    /** {@inheritDoc} */
+    public function generate(Link $link): string
+    {
+        $url = 'https://outlook.live.com/calendar/action/compose';
+        $query = $this->getOutlookParams($link);
+        $query = [...$query, ...$this->urlParameters];
+        return $url . '?' . http_build_query($query);
     }
 }
